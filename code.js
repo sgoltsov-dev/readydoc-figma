@@ -76,7 +76,7 @@ function makeText(chars, size, weight, color) {
   t.fontSize = size;
   t.characters = chars;
   t.fills = [{ type: "SOLID", color: color ? color : { r: 0.067, g: 0.067, b: 0.067 } }];
-  t.textAutoResize = "HEIGHT";
+  t.textAutoResize = "WIDTH_AND_HEIGHT";
 
   // Register nodes for theme application
   if (size === 28 && weight === "Bold") {
@@ -100,9 +100,10 @@ function makeText(chars, size, weight, color) {
   return t;
 }
 
-function makeDivider(width) {
+function makeDivider() {
   const r = figma.createRectangle();
-  r.resize(width, 1);
+  r.resize(100, 1);
+  r.layoutAlign = "STRETCH";
   r.fills = [{ type: "SOLID", color: { r: 0.878, g: 0.878, b: 0.878 } }];
   _themed.divider.push(r);
   return r;
@@ -125,8 +126,6 @@ function makeCard(cs, label, description, propMap, boolOverrides) {
 
   // Description
   const descText = makeText(description, 12, "Regular", { r: 0.4, g: 0.4, b: 0.4 });
-  descText.resize(320, descText.height);
-  descText.textAutoResize = "HEIGHT";
   frame.appendChild(descText);
 
   // Component instance
@@ -140,14 +139,9 @@ function makeCard(cs, label, description, propMap, boolOverrides) {
     } catch (_) {}
   }
 
-  // Scale down if too wide
-  if (inst.width > 360) {
-    const scale = 360 / inst.width;
-    inst.rescale(scale);
-  }
-
   frame.appendChild(inst);
-  frame.resize(Math.max(inst.width, 320), frame.height);
+  frame.primaryAxisSizingMode = "AUTO";
+  frame.counterAxisSizingMode = "AUTO";
 
   return frame;
 }
@@ -181,7 +175,7 @@ function makeSection(title, cards) {
   const heading = makeText(title, 18, "Bold");
   section.appendChild(heading);
 
-  const divider = makeDivider(760);
+  const divider = makeDivider();
   section.appendChild(divider);
 
   // Pair cards into rows of 2
@@ -202,9 +196,8 @@ function makeNotesField() {
   t.fontSize = 13;
   t.characters = "Add notes here...";
   t.fills = [{ type: "SOLID", color: { r: 0.75, g: 0.75, b: 0.75 } }];
-  t.textAutoResize = "HEIGHT";
-  t.resize(760, t.height);
-  t.textAutoResize = "HEIGHT";
+  t.textAutoResize = "WIDTH_AND_HEIGHT";
+  t.layoutAlign = "STRETCH";
   return t;
 }
 
@@ -264,7 +257,7 @@ async function applyTheme(readme, themeConfig) {
 
 // ─── main build ─────────────────────────────────────────────────────────────
 
-async function buildReadme(cs, descriptions, manualSections, themeConfig) {
+async function buildReadme(cs, descriptions, manualSections, themeConfig, cornerRadius) {
   await loadFonts();
 
   // Reset theme node registry
@@ -293,7 +286,7 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig) {
   readme.paddingTop = 40;
   readme.paddingBottom = 60;
   readme.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
-  readme.cornerRadius = 32;
+  readme.cornerRadius = (typeof cornerRadius === "number") ? cornerRadius : 32;
   readme.clipsContent = true;
 
   // Title block
@@ -305,8 +298,6 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig) {
   titleFrame.appendChild(makeText(cs.name, 28, "Bold"));
   const subtitleText = descriptions.componentDescription ? descriptions.componentDescription : (cs.name + " is a UI component.");
   const subtitle = makeText(subtitleText, 14, "Regular", { r: 0.4, g: 0.4, b: 0.4 });
-  subtitle.resize(760, subtitle.height);
-  subtitle.textAutoResize = "HEIGHT";
   titleFrame.appendChild(subtitle);
   titleFrame.primaryAxisSizingMode = "AUTO";
   titleFrame.counterAxisSizingMode = "AUTO";
@@ -460,7 +451,7 @@ figma.ui.onmessage = async function(msg) {
     const cs = getComponentSet();
     if (!cs) return;
     try {
-      await buildReadme(cs, msg.descriptions, msg.manualSections, msg.themeConfig);
+      await buildReadme(cs, msg.descriptions, msg.manualSections, msg.themeConfig, msg.cornerRadius);
       figma.ui.postMessage({ type: "DONE" });
     } catch (e) {
       figma.ui.postMessage({ type: "ERROR", message: String(e) });

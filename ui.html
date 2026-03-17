@@ -547,7 +547,14 @@
         </div>
       </div>
 
-      <button class="btn-small" id="btn-clear-theme" style="margin-top:2px;align-self:flex-start">Clear theme</button>
+      <div class="token-group-label" style="margin-top:4px">Frame</div>
+      <div class="token-row">
+        <span class="token-label">Corner radius</span>
+        <input type="number" id="corner-radius" min="0" max="200" value="32"
+          style="flex:1;padding:4px 6px;font-size:11px;border:1px solid #ddd;border-radius:5px;outline:none" />
+      </div>
+
+      <button class="btn-small" id="btn-clear-theme" style="margin-top:6px;align-self:flex-start">Clear theme</button>
     </div>
   </div>
 
@@ -843,10 +850,17 @@
   }
 
   // ── full config ──────────────────────────────────────────────────────────
+  function getCornerRadius() {
+    var el = document.getElementById("corner-radius");
+    var v = parseInt(el.value, 10);
+    return isNaN(v) ? 32 : v;
+  }
+
   function buildFullConfig() {
     var cfg = readProviderConfig();
     cfg.manualSections = getManualSections();
     cfg.themeConfig = getThemeConfigFromUI();
+    cfg.cornerRadius = getCornerRadius();
     return cfg;
   }
 
@@ -870,6 +884,7 @@
 
     if (cfg.manualSections) applyManualSectionsToUI(cfg.manualSections);
     if (cfg.themeConfig) applyThemeConfigToUI(cfg.themeConfig);
+    if (typeof cfg.cornerRadius === "number") document.getElementById("corner-radius").value = cfg.cornerRadius;
   }
 
   // ── theme options loading ────────────────────────────────────────────────
@@ -955,6 +970,8 @@
     parent.postMessage({ pluginMessage: { type: "GET_THEME_OPTIONS" } }, "*");
   });
 
+  document.getElementById("corner-radius").addEventListener("change", function() { saveFullConfig(); });
+
   document.getElementById("btn-clear-theme").addEventListener("click", function() {
     clearThemeUI();
     saveFullConfig();
@@ -1033,7 +1050,8 @@
         type: "BUILD_README",
         descriptions: descriptions,
         manualSections: manualSections,
-        themeConfig: themeConf
+        themeConfig: themeConf,
+        cornerRadius: getCornerRadius()
       } }, "*");
     } catch (e) {
       btn.disabled = false;
