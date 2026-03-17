@@ -154,6 +154,12 @@
   .status.info { display: block; background: #eef2ff; color: #3730a3; }
   .status.error { display: block; background: #fef2f2; color: #dc2626; }
   .status.success { display: block; background: #f0fdf4; color: #16a34a; }
+  .status-close {
+    float: right; background: none; border: none; cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 0 0 0 8px;
+    color: inherit; opacity: 0.6;
+  }
+  .status-close:hover { opacity: 1; }
 
   .spinner {
     width: 14px; height: 14px;
@@ -748,10 +754,27 @@
   var styleAcs = [acStyleTitle, acStyleSectionHeading, acStyleBody, acStyleLabel];
 
   // ── helpers ──────────────────────────────────────────────────────────────
+  var _successTimer = null;
+
   function showStatus(id, type, msg) {
     var el = document.getElementById(id);
     el.className = "status " + type;
     el.textContent = msg;
+  }
+
+  function showSuccessBanner() {
+    if (_successTimer) { clearTimeout(_successTimer); _successTimer = null; }
+    var el = document.getElementById("status1");
+    el.className = "status success";
+    el.innerHTML = "Readme frame created on canvas. <button class=\"status-close\" onclick=\"clearStatusBanner()\">\u00d7</button>";
+    _successTimer = setTimeout(function() { clearStatusBanner(); }, 4000);
+  }
+
+  function clearStatusBanner() {
+    if (_successTimer) { clearTimeout(_successTimer); _successTimer = null; }
+    var el = document.getElementById("status1");
+    el.className = "status";
+    el.textContent = "";
   }
 
   function setStep(n) {
@@ -1040,6 +1063,7 @@
 
     var btn = document.getElementById("btn-generate");
     var spinner = document.getElementById("spinner1");
+    clearStatusBanner();
     btn.disabled = true;
     spinner.classList.add("visible");
     showStatus("status1", "info", "Generating descriptions…");
@@ -1250,7 +1274,14 @@
       return;
     }
 
-    if (msg.type === "DONE") { setStep(2); }
+    if (msg.type === "DONE") {
+      var spinnerDone = document.getElementById("spinner1");
+      var btnDone = document.getElementById("btn-generate");
+      spinnerDone.classList.remove("visible");
+      btnDone.disabled = false;
+      showSuccessBanner();
+      return;
+    }
 
     if (msg.type === "ERROR") {
       var spinner = document.getElementById("spinner1");

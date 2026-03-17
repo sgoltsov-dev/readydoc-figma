@@ -58,6 +58,9 @@ async function loadFonts() {
   await figma.loadFontAsync({ family: "Inter", style: "Bold" });
 }
 
+// Deferred boolean overrides — applied after readme is in the document
+var _deferredOverrides = [];
+
 // Theme node registry — reset before each build in buildReadme()
 var _themed = {
   background: [],
@@ -76,7 +79,8 @@ function makeText(chars, size, weight, color) {
   t.fontSize = size;
   t.characters = chars;
   t.fills = [{ type: "SOLID", color: color ? color : { r: 0.067, g: 0.067, b: 0.067 } }];
-  t.textAutoResize = "WIDTH_AND_HEIGHT";
+  t.textAutoResize = "HEIGHT";
+  t.layoutAlign = "STRETCH";
 
   // Register nodes for theme application
   if (size === 28 && weight === "Bold") {
@@ -110,36 +114,40 @@ function makeDivider() {
 }
 
 // One "card" = variant label + description text + component instance
-function makeCard(cs, label, description, propMap, boolOverrides) {
+// targetBoolKey: raw property key (with #suffix) of the ONE boolean to show, or null
+function makeCard(cs, label, description, propMap, targetBoolKey) {
   const frame = figma.createFrame();
   frame.name = label;
   frame.layoutMode = "VERTICAL";
-  frame.itemSpacing = 8;
+  frame.itemSpacing = 20;
   frame.paddingLeft = frame.paddingRight = 0;
   frame.paddingTop = frame.paddingBottom = 0;
   frame.fills = [];
   frame.clipsContent = false;
 
-  // Label (bold)
-  const titleText = makeText(label, 13, "Medium", { r: 0.067, g: 0.067, b: 0.067 });
-  frame.appendChild(titleText);
-
-  // Description
-  const descText = makeText(description, 12, "Regular", { r: 0.4, g: 0.4, b: 0.4 });
-  frame.appendChild(descText);
+  // Text group (label + description, tight spacing)
+  const textGroup = figma.createFrame();
+  textGroup.name = "text";
+  textGroup.layoutMode = "VERTICAL";
+  textGroup.itemSpacing = 4;
+  textGroup.fills = [];
+  textGroup.clipsContent = false;
+  textGroup.layoutAlign = "STRETCH";
+  textGroup.counterAxisSizingMode = "FIXED";
+  textGroup.primaryAxisSizingMode = "AUTO";
+  textGroup.appendChild(makeText(label, 13, "Medium", { r: 0.067, g: 0.067, b: 0.067 }));
+  textGroup.appendChild(makeText(description, 12, "Regular", { r: 0.4, g: 0.4, b: 0.4 }));
+  frame.appendChild(textGroup);
 
   // Component instance
   const variant = findVariant(cs, propMap);
   const inst = variant.createInstance();
-
-  // Apply boolean overrides
-  if (boolOverrides && Object.keys(boolOverrides).length) {
-    try {
-      inst.setProperties(boolOverrides);
-    } catch (_) {}
-  }
-
   frame.appendChild(inst);
+
+  // Defer boolean visibility fix — applied after readme is in the document
+  if (targetBoolKey) {
+    _deferredOverrides.push({ inst: inst, targetKey: targetBoolKey });
+  }
   frame.primaryAxisSizingMode = "AUTO";
   frame.counterAxisSizingMode = "AUTO";
 
@@ -155,7 +163,7 @@ function makeRow(cardA, cardB) {
   row.fills = [];
   row.clipsContent = false;
   row.counterAxisSizingMode = "AUTO";
-  row.primaryAxisSizingMode = "AUTO";
+  row.primaryAxisSizingMode = "FIXED";
   row.appendChild(cardA);
   if (cardB) row.appendChild(cardB);
   return row;
@@ -171,21 +179,51 @@ function makeSection(title, cards) {
   section.fills = [];
   section.clipsContent = false;
 
-  // Section heading
+  // Section heading — capped at 560px
   const heading = makeText(title, 18, "Bold");
+  heading.resize(560, heading.height);
+  heading.layoutAlign = "INHERIT";
   section.appendChild(heading);
 
   const divider = makeDivider();
   section.appendChild(divider);
 
-  // Pair cards into rows of 2
-  for (let i = 0; i < cards.length; i += 2) {
-    const row = makeRow(cards[i], cards[i + 1] ? cards[i + 1] : null);
-    section.appendChild(row);
+  // Determine column count based on widest card
+  var maxCardWidth = 0;
+  for (var ci = 0; ci < cards.length; ci++) {
+    if (cards[ci].width > maxCardWidth) maxCardWidth = cards[ci].width;
+  }
+  var cols = maxCardWidth <= 560 ? 2 : 1;
+
+  if (cols === 2) {
+    for (var i = 0; i < cards.length; i += 2) {
+      var cardA = cards[i];
+      var cardB = cards[i + 1] ? cards[i + 1] : null;
+      const row = makeRow(cardA, cardB);
+      cardA.layoutGrow = 1;
+      cardA.counterAxisSizingMode = "FIXED";
+      if (cardB) { cardB.layoutGrow = 1; cardB.counterAxisSizingMode = "FIXED"; }
+      row.layoutAlign = "STRETCH";
+      section.appendChild(row);
+    }
+  } else {
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].layoutAlign = "STRETCH";
+      cards[i].counterAxisSizingMode = "FIXED";
+      // Cap text group at 560px — card fills full width but text stays readable
+      var tg = cards[i].children[0];
+      if (tg && tg.type === "FRAME") {
+        tg.resize(560, tg.height);
+        tg.counterAxisSizingMode = "FIXED";
+        tg.layoutAlign = "INHERIT";
+      }
+      section.appendChild(cards[i]);
+    }
   }
 
   section.primaryAxisSizingMode = "AUTO";
-  section.counterAxisSizingMode = "AUTO";
+  section.counterAxisSizingMode = "FIXED";
+  section.layoutAlign = "STRETCH";
   return section;
 }
 
@@ -196,8 +234,9 @@ function makeNotesField() {
   t.fontSize = 13;
   t.characters = "Add notes here...";
   t.fills = [{ type: "SOLID", color: { r: 0.75, g: 0.75, b: 0.75 } }];
-  t.textAutoResize = "WIDTH_AND_HEIGHT";
-  t.layoutAlign = "STRETCH";
+  t.resize(560, t.height);
+  t.textAutoResize = "HEIGHT";
+  t.layoutAlign = "INHERIT";
   return t;
 }
 
@@ -255,10 +294,37 @@ async function applyTheme(readme, themeConfig) {
   if (textStyles.label)          await applyTextStyle(_themed.labelStyle, textStyles.label);
 }
 
+// ─── boolean-like variant helpers ───────────────────────────────────────────
+
+// All k-size subsets of arr
+function getCombinations(arr, k) {
+  if (k === 0) return [[]];
+  if (k > arr.length) return [];
+  var result = [];
+  for (var i = 0; i <= arr.length - k; i++) {
+    var tails = getCombinations(arr.slice(i + 1), k - 1);
+    for (var j = 0; j < tails.length; j++) {
+      result.push([arr[i]].concat(tails[j]));
+    }
+  }
+  return result;
+}
+
+function getTrueVal(vals) {
+  for (var i = 0; i < vals.length; i++) { if (vals[i].toLowerCase() === "true") return vals[i]; }
+  return "True";
+}
+function getFalseVal(vals) {
+  for (var i = 0; i < vals.length; i++) { if (vals[i].toLowerCase() === "false") return vals[i]; }
+  return "False";
+}
+
 // ─── main build ─────────────────────────────────────────────────────────────
 
 async function buildReadme(cs, descriptions, manualSections, themeConfig, cornerRadius) {
   await loadFonts();
+
+  _deferredOverrides = [];
 
   // Reset theme node registry
   _themed = {
@@ -277,6 +343,106 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
   const booleans = extracted.booleans;
   const booleanKeyMap = extracted.booleanKeyMap;
 
+  // ── Build all cards first to measure component widths ─────────────────
+  var variantDescriptions = (descriptions && descriptions.variants) ? descriptions.variants : {};
+  var allSections = [];
+
+  // Detect "boolean-like" variant properties: exactly 2 values "True"/"False"
+  var boolLikeVariants = {};
+  for (var pn in variants) {
+    if (!variants.hasOwnProperty(pn)) continue;
+    var pVals = variants[pn];
+    if (pVals.length === 2) {
+      var hasT = false, hasF = false;
+      for (var pvi = 0; pvi < pVals.length; pvi++) {
+        if (pVals[pvi].toLowerCase() === "true") hasT = true;
+        if (pVals[pvi].toLowerCase() === "false") hasF = true;
+      }
+      if (hasT && hasF) boolLikeVariants[pn] = true;
+    }
+  }
+  var boolLikeKeys = Object.keys(boolLikeVariants);
+
+  // ── Regular (non-boolean-like) variant sections ──────────────────────────
+  for (var propName in variants) {
+    if (!variants.hasOwnProperty(propName)) continue;
+    if (boolLikeVariants[propName]) continue; // handled below
+    var values = variants[propName] || [];
+    if (!values.length) continue;
+    var sCards = [];
+    for (var vIdx = 0; vIdx < values.length; vIdx++) {
+      var v = values[vIdx];
+      var propBlock = variantDescriptions[propName] ? variantDescriptions[propName] : null;
+      var desc = (propBlock && propBlock[v]) ? propBlock[v] : "Component description";
+      var propMap = {};
+      propMap[propName] = v;
+      sCards.push(makeCard(cs, v, desc, propMap, null));
+    }
+    if (sCards.length) allSections.push({ title: propName, cards: sCards });
+  }
+
+  // ── Boolean-like variant sections: combinatorial (1 active, 2 active, …) ─
+  if (boolLikeKeys.length) {
+    for (var count = 1; count <= boolLikeKeys.length; count++) {
+      var combos = getCombinations(boolLikeKeys, count);
+      var combCards = [];
+      for (var ci = 0; ci < combos.length; ci++) {
+        var combo = combos[ci];
+        // propMap: all bool-like → False, then combo members → True
+        var propMap = {};
+        for (var bk = 0; bk < boolLikeKeys.length; bk++) {
+          propMap[boolLikeKeys[bk]] = getFalseVal(variants[boolLikeKeys[bk]]);
+        }
+        for (var tk = 0; tk < combo.length; tk++) {
+          propMap[combo[tk]] = getTrueVal(variants[combo[tk]]);
+        }
+        // Label: active property names joined
+        var label = combo.join(" + ");
+        // Description: join individual True descriptions
+        var descParts = [];
+        for (var dk = 0; dk < combo.length; dk++) {
+          var pb = variantDescriptions[combo[dk]];
+          var tv = getTrueVal(variants[combo[dk]]);
+          descParts.push((pb && pb[tv]) ? pb[tv] : combo[dk]);
+        }
+        var desc = descParts.join(" / ");
+        combCards.push(makeCard(cs, label, desc, propMap, null));
+      }
+      var countWords = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
+      var countWord = count <= 10 ? countWords[count] : String(count);
+      var secTitle = countWord + (count === 1 ? " active state" : " active states");
+      allSections.push({ title: secTitle, cards: combCards });
+    }
+  }
+
+  var boolKeys = Object.keys(booleans);
+  if (boolKeys.length) {
+    var boolCards = [];
+    for (var bi = 0; bi < boolKeys.length; bi++) {
+      var bKey = boolKeys[bi];
+      var boolSec = descriptions && descriptions.booleans && descriptions.booleans[bKey] ? descriptions.booleans[bKey] : null;
+      var bDesc = boolSec ? (boolSec["true"] || "Component description") : "Component description";
+      var targetRawKey = booleanKeyMap[bKey] || bKey;
+      boolCards.push(makeCard(cs, bKey, bDesc, {}, targetRawKey));
+    }
+    allSections.push({ title: "Boolean options", cards: boolCards });
+  }
+
+  // ── Calculate readme width from max component width ───────────────────
+  var globalMaxInstW = 0;
+  for (var si = 0; si < allSections.length; si++) {
+    var sc = allSections[si].cards;
+    for (var ci = 0; ci < sc.length; ci++) {
+      if (sc[ci].width > globalMaxInstW) globalMaxInstW = sc[ci].width;
+    }
+  }
+  // 2-col when component ≤ 560px, 1-col otherwise
+  var globalCols = globalMaxInstW <= 560 ? 2 : 1;
+  // Content width: enough for columns, min 760 to fit 560px text block
+  var contentW = globalCols === 2
+    ? Math.max(2 * globalMaxInstW + 40, 760)
+    : Math.max(globalMaxInstW, 760);
+
   // Root readme frame
   const readme = figma.createFrame();
   readme.name = cs.name + " / Readme";
@@ -288,6 +454,8 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
   readme.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
   readme.cornerRadius = (typeof cornerRadius === "number") ? cornerRadius : 32;
   readme.clipsContent = true;
+  readme.resize(contentW + 80, 100);
+  readme.counterAxisSizingMode = "FIXED";
 
   // Title block
   const titleFrame = figma.createFrame();
@@ -295,51 +463,26 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
   titleFrame.itemSpacing = 6;
   titleFrame.fills = [];
   titleFrame.clipsContent = false;
-  titleFrame.appendChild(makeText(cs.name, 28, "Bold"));
+  titleFrame.layoutAlign = "STRETCH";
+  titleFrame.counterAxisSizingMode = "FIXED";
+  const titleNode = makeText(cs.name, 28, "Bold");
+  titleNode.resize(560, titleNode.height);
+  titleNode.layoutAlign = "INHERIT";
+  titleFrame.appendChild(titleNode);
   const subtitleText = descriptions.componentDescription ? descriptions.componentDescription : (cs.name + " is a UI component.");
   const subtitle = makeText(subtitleText, 14, "Regular", { r: 0.4, g: 0.4, b: 0.4 });
+  subtitle.resize(560, subtitle.height);
+  subtitle.layoutAlign = "INHERIT";
   titleFrame.appendChild(subtitle);
   titleFrame.primaryAxisSizingMode = "AUTO";
-  titleFrame.counterAxisSizingMode = "AUTO";
   readme.appendChild(titleFrame);
 
-  // ── Variant sections (dynamic) ──────────────────────────────────────────
-  var variantDescriptions = (descriptions && descriptions.variants) ? descriptions.variants : {};
-
-  for (var propName in variants) {
-    if (!variants.hasOwnProperty(propName)) continue;
-    var values = variants[propName] || [];
-    if (!values.length) continue;
-
-    const cards = values.map(function(v) {
-      var propBlock = variantDescriptions && variantDescriptions[propName] ? variantDescriptions[propName] : null;
-      var desc = (propBlock && propBlock[v]) ? propBlock[v] : "Component description";
-      var propMap = {};
-      propMap[propName] = v;
-      return makeCard(cs, v, desc, propMap, {});
-    });
-
-    readme.appendChild(makeSection(propName, cards));
+  // ── Append sections ───────────────────────────────────────────────────
+  for (var sj = 0; sj < allSections.length; sj++) {
+    readme.appendChild(makeSection(allSections[sj].title, allSections[sj].cards));
   }
 
-  // ── Boolean options ─────────────────────────────────────────────────────
-  const boolKeys = Object.keys(booleans);
-  if (boolKeys.length) {
-    const boolCards = [];
-    for (const key of boolKeys) {
-      for (const val of [true, false]) {
-        const label = key + " / " + (val ? "True" : "False");
-        const boolSection = descriptions && descriptions.booleans && descriptions.booleans[key] ? descriptions.booleans[key] : null;
-        const desc = boolSection ? (boolSection[val ? "true" : "false"] || "Component description") : "Component description";
-        const override = {};
-        override[booleanKeyMap[key] ? booleanKeyMap[key] : key] = val;
-        boolCards.push(makeCard(cs, label, desc, {}, override));
-      }
-    }
-    readme.appendChild(makeSection("Boolean options", boolCards));
-  }
-
-  // ── Manual sections ─────────────────────────────────────────────────────
+  // ── Manual sections ───────────────────────────────────────────────────
   if (manualSections && manualSections.length) {
     for (const sectionTitle of manualSections) {
       readme.appendChild(makeManualSection(sectionTitle));
@@ -347,7 +490,6 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
   }
 
   readme.primaryAxisSizingMode = "AUTO";
-  readme.counterAxisSizingMode = "AUTO";
 
   // Position readme to the right of the component set
   var bbox = cs.absoluteBoundingBox;
@@ -357,6 +499,31 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
   readme.y = bbox ? bbox.y : cs.y;
 
   figma.currentPage.appendChild(readme);
+
+  // ── Apply deferred boolean visibility (instance must be in document) ────
+  // setProperties is unreliable for boolean overrides; instead we walk the
+  // instance tree and directly set node.visible based on componentPropertyReferences
+  for (var di = 0; di < _deferredOverrides.length; di++) {
+    var dInst = _deferredOverrides[di].inst;
+    var dTarget = _deferredOverrides[di].targetKey;
+    (function walkBool(node) {
+      try {
+        var refs = node.componentPropertyReferences;
+        if (refs && refs.visible) {
+          var cProps = dInst.componentProperties;
+          if (cProps && cProps[refs.visible] && cProps[refs.visible].type === "BOOLEAN") {
+            node.visible = (refs.visible === dTarget);
+          }
+        }
+      } catch (_) {}
+      if (node.children) {
+        for (var ci = 0; ci < node.children.length; ci++) {
+          walkBool(node.children[ci]);
+        }
+      }
+    })(dInst);
+  }
+  _deferredOverrides = [];
 
   // ── Apply theme (variables + text styles) ───────────────────────────────
   await applyTheme(readme, themeConfig);
