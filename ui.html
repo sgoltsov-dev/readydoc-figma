@@ -913,7 +913,7 @@
     var collName = _collectionNames[data.collectionKey] ? _collectionNames[data.collectionKey] : data.collectionKey;
 
     for (var i = 0; i < vars.length; i++) {
-      _allColorVars.push({ key: vars[i].key, name: collName + " / " + vars[i].name });
+      _allColorVars.push({ key: vars[i].key, name: vars[i].name });
     }
 
     _pendingCollections--;
