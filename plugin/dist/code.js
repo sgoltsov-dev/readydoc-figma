@@ -42,7 +42,7 @@ function extractProperties(cs) {
   for (const [key, def] of Object.entries(cs.componentPropertyDefinitions)) {
     var clean = cleanKey(key);
     if (def.type === "VARIANT") {
-      var vgp = cs.variantGroupProperties[key];
+      var vgp = cs.variantGroupProperties[clean];
       variants[clean] = (vgp && vgp.values) ? vgp.values : [];
     } else if (def.type === "BOOLEAN") {
       booleans[clean] = (def.defaultValue !== undefined && def.defaultValue !== null) ? def.defaultValue : true;
@@ -592,9 +592,9 @@ function collectTextStyles() {
 
 var CONFIG_KEY = "plugin_config";
 
-// load saved key on startup
+// load saved key on startup — always send so UI knows loading is complete
 figma.clientStorage.getAsync("claude_api_key").then(function(key) {
-  if (key) figma.ui.postMessage({ type: "SAVED_KEY", key: key });
+  figma.ui.postMessage({ type: "SAVED_KEY", key: key || '' });
 });
 
 // load saved config on startup
