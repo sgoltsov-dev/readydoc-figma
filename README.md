@@ -1,4 +1,4 @@
-# Readydoc
+# Readydoc for Figma
 
 ![Readydoc](docs/plugin-cover.png)
 
