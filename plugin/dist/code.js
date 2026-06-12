@@ -1,6 +1,24 @@
-// code.js — runs in Figma sandbox
+// code.ts — runs in Figma sandbox
 
-figma.showUI(__html__, { width: 380, height: 620, title: "AI Component Docs", themeColors: true });
+// Typography tokens (base = 14px, Tailwind-style naming)
+const FONT_SIZE = {
+  base:    { size: 14, leading: 20 },
+  lg:      { size: 16, leading: 22 },
+  xl:      { size: 20, leading: 24 },
+  heading: { size: 48, leading: 58 },
+};
+const FONT_WEIGHT = {
+  regular: "Regular",
+  medium:  "Medium",
+  bold:    "Bold",
+};
+
+// Bundled logo — embedded as base64 PNG so the plugin works in any file
+const _LOGO_B64 = "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";
+
+figma.showUI(__html__, { width: 380, height: 620, title: "Readydoc", themeColors: true });
+
+let _lastComponentSetId = null;
 
 function handleSelectionChange() {
   const cs = getComponentSet();
@@ -8,12 +26,15 @@ function handleSelectionChange() {
     figma.ui.postMessage({ type: "SELECTION_CLEARED" });
     return;
   }
+  _lastComponentSetId = cs.id;
   const { variants, booleans } = extractProperties(cs);
+  const nested = collectNestedComponents(cs);
   figma.ui.postMessage({
     type: "COMPONENT_DATA",
     name: cs.name,
     variants,
     booleans: Object.keys(booleans),
+    nested,
   });
 }
 
@@ -42,8 +63,7 @@ function extractProperties(cs) {
   for (const [key, def] of Object.entries(cs.componentPropertyDefinitions)) {
     var clean = cleanKey(key);
     if (def.type === "VARIANT") {
-      var vgp = cs.variantGroupProperties[clean];
-      variants[clean] = (vgp && vgp.values) ? vgp.values : [];
+      variants[clean] = def.variantOptions || [];
     } else if (def.type === "BOOLEAN") {
       booleans[clean] = (def.defaultValue !== undefined && def.defaultValue !== null) ? def.defaultValue : true;
       booleanKeyMap[clean] = key;
@@ -67,20 +87,60 @@ function findVariant(cs, propMap) {
   return cs.defaultVariant ? cs.defaultVariant : cs.children.find(function(c) { return c.type === "COMPONENT"; });
 }
 
+// Walk the default variant and return info about exposed nested components
+function collectNestedComponents(cs) {
+  var result = [];
+  var seen = {};
+  function walk(node) {
+    if (node.type === "INSTANCE" && node.isExposedInstance) {
+      var mc = node.mainComponent;
+      if (mc) {
+        var source = (mc.parent && mc.parent.type === "COMPONENT_SET") ? mc.parent : mc;
+        if (!seen[source.id]) {
+          seen[source.id] = true;
+          var defs = source.componentPropertyDefinitions || {};
+          var props = [];
+          for (var k in defs) {
+            if (!defs.hasOwnProperty(k)) continue;
+            var d = defs[k];
+            var label = k.replace(/#[^#]+$/, "").trim();
+            if (d.type === "VARIANT" && d.variantOptions && d.variantOptions.length) {
+              props.push(label + ": " + d.variantOptions.join(", "));
+            } else if (d.type === "BOOLEAN") {
+              props.push(label + " (on/off)");
+            } else if (d.type === "TEXT") {
+              props.push(label + " (text)");
+            } else if (d.type === "INSTANCE_SWAP") {
+              props.push(label + " (swap)");
+            }
+          }
+          result.push({ name: source.name, props: props });
+        }
+      }
+    }
+    if (node.children) {
+      for (var i = 0; i < node.children.length; i++) walk(node.children[i]);
+    }
+  }
+  var base = cs.defaultVariant || cs.children.find(function(c) { return c.type === "COMPONENT"; });
+  if (base) walk(base);
+  return result;
+}
+
 // ─── readme builder ─────────────────────────────────────────────────────────
 
 async function loadFonts() {
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
   await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+  await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
   await figma.loadFontAsync({ family: "Inter", style: "Bold" });
 }
 
 // Deferred boolean overrides — applied after readme is in the document
-var _deferredOverrides = [];
+let _deferredOverrides = [];
 
 // Theme node registry — reset before each build in buildReadme()
-var _themed = {
-  background: [],
+let _themed = {
   textPrimary: [],
   textSecondary: [],
   divider: [],
@@ -90,42 +150,40 @@ var _themed = {
   labelStyle: []
 };
 
-function makeText(chars, size, weight, color) {
+function makeText(chars, fontToken, weight, color) {
   const t = figma.createText();
   t.fontName = { family: "Inter", style: weight };
-  t.fontSize = size;
+  t.fontSize = fontToken.size;
+  t.lineHeight = { value: fontToken.leading, unit: "PIXELS" };
   t.characters = chars;
   t.fills = [{ type: "SOLID", color: color ? color : { r: 0.067, g: 0.067, b: 0.067 } }];
   t.textAutoResize = "HEIGHT";
   t.layoutAlign = "STRETCH";
 
-  // Register nodes for theme application
-  if (size === 28 && weight === "Bold") {
+  if (fontToken === FONT_SIZE.heading && weight === FONT_WEIGHT.bold) {
     _themed.textPrimary.push(t);
     _themed.titleStyle.push(t);
-  } else if (size === 18 && weight === "Bold") {
+  } else if (fontToken === FONT_SIZE.xl && weight === FONT_WEIGHT.bold) {
     _themed.textPrimary.push(t);
     _themed.headingStyle.push(t);
-  } else if (size === 13 && weight === "Medium") {
+  } else if (fontToken === FONT_SIZE.lg && weight === FONT_WEIGHT.medium) {
     _themed.textPrimary.push(t);
     _themed.labelStyle.push(t);
-  } else if (size === 14 && weight === "Regular") {
-    _themed.textSecondary.push(t);
-    _themed.bodyStyle.push(t);
-  } else if (size === 12 && weight === "Regular") {
+  } else if (fontToken === FONT_SIZE.base && weight === FONT_WEIGHT.regular) {
     _themed.textSecondary.push(t);
     _themed.bodyStyle.push(t);
   }
-  // Notes placeholder text (13px Regular gray) intentionally excluded from theming
 
   return t;
 }
 
 function makeDivider() {
-  const r = figma.createRectangle();
-  r.resize(100, 1);
+  const r = figma.createLine();
+  r.resize(100, 0);
+  r.strokeWeight = 1;
+  r.strokes = [{ type: "SOLID", color: { r: 0.878, g: 0.878, b: 0.878 } }];
+  r.fills = [];
   r.layoutAlign = "STRETCH";
-  r.fills = [{ type: "SOLID", color: { r: 0.878, g: 0.878, b: 0.878 } }];
   _themed.divider.push(r);
   return r;
 }
@@ -152,14 +210,14 @@ function makeCard(cs, label, description, propMap, targetBoolKey) {
   textGroup.layoutAlign = "STRETCH";
   textGroup.counterAxisSizingMode = "FIXED";
   textGroup.primaryAxisSizingMode = "AUTO";
-  textGroup.appendChild(makeText(label, 13, "Medium", { r: 0.067, g: 0.067, b: 0.067 }));
-  textGroup.appendChild(makeText(description, 12, "Regular", { r: 0.4, g: 0.4, b: 0.4 }));
+  textGroup.appendChild(makeText(label, FONT_SIZE.base, FONT_WEIGHT.medium, { r: 0.067, g: 0.067, b: 0.067 }));
+  textGroup.appendChild(makeText(description, FONT_SIZE.base, FONT_WEIGHT.regular, { r: 0.4, g: 0.4, b: 0.4 }));
   frame.appendChild(textGroup);
 
   // Component instance
   const variant = findVariant(cs, propMap);
   const inst = variant.createInstance();
-  inst.layoutAlign = "STRETCH";
+  inst.layoutAlign = "INHERIT";
   frame.appendChild(inst);
 
   // Defer boolean visibility fix — applied after readme is in the document
@@ -191,27 +249,35 @@ function makeSection(title, cards) {
   const section = figma.createFrame();
   section.name = title;
   section.layoutMode = "VERTICAL";
-  section.itemSpacing = 24;
+  section.itemSpacing = 40;
   section.paddingLeft = section.paddingRight = 0;
   section.paddingTop = section.paddingBottom = 0;
   section.fills = [];
   section.clipsContent = false;
 
-  // Section heading — capped at 560px
-  const heading = makeText(title, 18, "Bold");
+  // Section header: heading + divider with 20px gap
+  const sectionHeader = figma.createFrame();
+  sectionHeader.name = "section-header";
+  sectionHeader.layoutMode = "VERTICAL";
+  sectionHeader.itemSpacing = 20;
+  sectionHeader.fills = [];
+  sectionHeader.clipsContent = false;
+  sectionHeader.layoutAlign = "STRETCH";
+  sectionHeader.counterAxisSizingMode = "FIXED";
+  sectionHeader.primaryAxisSizingMode = "AUTO";
+  const heading = makeText(title, FONT_SIZE.xl, FONT_WEIGHT.bold);
   heading.resize(560, heading.height);
   heading.layoutAlign = "INHERIT";
-  section.appendChild(heading);
-
-  const divider = makeDivider();
-  section.appendChild(divider);
+  sectionHeader.appendChild(heading);
+  sectionHeader.appendChild(makeDivider());
+  section.appendChild(sectionHeader);
 
   // Determine column count based on widest card
   var maxCardWidth = 0;
   for (var ci = 0; ci < cards.length; ci++) {
     if (cards[ci].width > maxCardWidth) maxCardWidth = cards[ci].width;
   }
-  var cols = maxCardWidth <= 560 ? 2 : 1;
+  var cols = maxCardWidth <= 476 ? 2 : 1;
 
   if (cols === 2) {
     for (var i = 0; i < cards.length; i += 2) {
@@ -228,10 +294,10 @@ function makeSection(title, cards) {
     for (var i = 0; i < cards.length; i++) {
       cards[i].layoutAlign = "STRETCH";
       cards[i].counterAxisSizingMode = "FIXED";
-      // Cap text group at 560px — card fills full width but text stays readable
+      // Cap text group at 500px (≈11 words at 16px) — card fills full width but text stays readable
       var tg = cards[i].children[0];
       if (tg && tg.type === "FRAME") {
-        tg.resize(560, tg.height);
+        tg.resize(500, tg.height);
         tg.counterAxisSizingMode = "FIXED";
         tg.layoutAlign = "INHERIT";
       }
@@ -245,11 +311,11 @@ function makeSection(title, cards) {
   return section;
 }
 
-// Placeholder text field for manual-fill sections
 function makeNotesField() {
   const t = figma.createText();
-  t.fontName = { family: "Inter", style: "Regular" };
-  t.fontSize = 13;
+  t.fontName = { family: "Inter", style: FONT_WEIGHT.regular };
+  t.fontSize = FONT_SIZE.base.size;
+  t.lineHeight = { value: FONT_SIZE.base.leading, unit: "PIXELS" };
   t.characters = "Add notes here...";
   t.fills = [{ type: "SOLID", color: { r: 0.75, g: 0.75, b: 0.75 } }];
   t.resize(560, t.height);
@@ -258,7 +324,6 @@ function makeNotesField() {
   return t;
 }
 
-// Manual section = standard heading + divider + empty notes field
 function makeManualSection(title) {
   const section = makeSection(title, []);
   section.appendChild(makeNotesField());
@@ -346,7 +411,6 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
 
   // Reset theme node registry
   _themed = {
-    background: [],
     textPrimary: [],
     textSecondary: [],
     divider: [],
@@ -393,6 +457,11 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
       var propBlock = variantDescriptions[propName] ? variantDescriptions[propName] : null;
       var desc = (propBlock && propBlock[v]) ? propBlock[v] : "Component description";
       var propMap = {};
+      // Seed with defaultVariant values so other properties stay fixed
+      if (cs.defaultVariant && cs.defaultVariant.variantProperties) {
+        var dvp = cs.defaultVariant.variantProperties;
+        for (var dpk in dvp) { if (dvp.hasOwnProperty(dpk)) propMap[dpk] = dvp[dpk]; }
+      }
       propMap[propName] = v;
       sCards.push(makeCard(cs, v, desc, propMap, null));
     }
@@ -408,6 +477,11 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
         var combo = combos[ci];
         // propMap: all bool-like → False, then combo members → True
         var propMap = {};
+        // Seed with defaultVariant values so non-boolean-like properties stay fixed
+        if (cs.defaultVariant && cs.defaultVariant.variantProperties) {
+          var dvp = cs.defaultVariant.variantProperties;
+          for (var dpk in dvp) { if (dvp.hasOwnProperty(dpk)) propMap[dpk] = dvp[dpk]; }
+        }
         for (var bk = 0; bk < boolLikeKeys.length; bk++) {
           propMap[boolLikeKeys[bk]] = getFalseVal(variants[boolLikeKeys[bk]]);
         }
@@ -446,6 +520,7 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
     allSections.push({ title: "Boolean options", cards: boolCards });
   }
 
+
   // ── Calculate readme width from max component width ───────────────────
   var globalMaxInstW = 0;
   for (var si = 0; si < allSections.length; si++) {
@@ -454,42 +529,95 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
       if (sc[ci].width > globalMaxInstW) globalMaxInstW = sc[ci].width;
     }
   }
-  // 2-col when component ≤ 560px, 1-col otherwise
-  var globalCols = globalMaxInstW <= 560 ? 2 : 1;
-  // Content width: enough for columns, min 760 to fit 560px text block
+  // 2-col when component ≤ 476px (half of 992px content minus 40px gap), 1-col otherwise
+  var globalCols = globalMaxInstW <= 476 ? 2 : 1;
+  // Content width: min 992px (= 1120px doc − 2×64px padding)
   var contentW = globalCols === 2
-    ? Math.max(2 * globalMaxInstW + 40, 760)
-    : Math.max(globalMaxInstW, 760);
+    ? Math.max(2 * globalMaxInstW + 40, 992)
+    : Math.max(globalMaxInstW, 992);
 
   // Root readme frame
   const readme = figma.createFrame();
   readme.name = cs.name + " / Readme";
   readme.layoutMode = "VERTICAL";
-  readme.itemSpacing = 48;
-  readme.paddingLeft = readme.paddingRight = 40;
-  readme.paddingTop = 40;
-  readme.paddingBottom = 60;
-  readme.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+  readme.itemSpacing = 80;
+  readme.paddingLeft = readme.paddingRight = 64;
+  readme.paddingTop = 56;
+  readme.paddingBottom = 80;
+  readme.fills = [{ type: "SOLID", color: { r: 0.98, g: 0.98, b: 0.98 } }];
   readme.cornerRadius = (typeof cornerRadius === "number") ? cornerRadius : 32;
   readme.clipsContent = true;
-  readme.resize(contentW + 80, 100);
+  readme.resize(contentW + 128, 100);
   readme.counterAxisSizingMode = "FIXED";
+
+  // ── Doc header: logo (left) + Documentation link (right) ─────────────────
+  const docHeader = figma.createFrame();
+  docHeader.name = "doc-header";
+  docHeader.layoutMode = "HORIZONTAL";
+  docHeader.primaryAxisAlignItems = "SPACE_BETWEEN";
+  docHeader.counterAxisAlignItems = "CENTER";
+  docHeader.primaryAxisSizingMode = "FIXED";
+  docHeader.counterAxisSizingMode = "AUTO";
+  docHeader.fills = [];
+  docHeader.clipsContent = false;
+  docHeader.layoutAlign = "STRETCH";
+
+  // Logo — bundled PNG, works in any file
+  const logoImg = figma.createImage(figma.base64Decode(_LOGO_B64));
+  const logoRect = figma.createRectangle();
+  logoRect.name = "ic-128-plugin-logo";
+  logoRect.resize(56, 56);
+  logoRect.fills = [{ type: "IMAGE", imageHash: logoImg.hash, scaleMode: "FILL" }];
+  docHeader.appendChild(logoRect);
+
+  // Right group: "Documentation" text + external link icon
+  const docsRight = figma.createFrame();
+  docsRight.name = "docs-link";
+  docsRight.layoutMode = "HORIZONTAL";
+  docsRight.itemSpacing = 2;
+  docsRight.counterAxisAlignItems = "CENTER";
+  docsRight.primaryAxisSizingMode = "AUTO";
+  docsRight.counterAxisSizingMode = "AUTO";
+  docsRight.fills = [];
+  docsRight.clipsContent = false;
+
+  const docsText = figma.createText();
+  docsText.fontName = { family: "Inter", style: FONT_WEIGHT.medium };
+  docsText.fontSize = FONT_SIZE.lg.size;
+  docsText.lineHeight = { value: FONT_SIZE.lg.leading, unit: "PIXELS" };
+  docsText.characters = "Documentation";
+  docsText.fills = [{ type: "SOLID", color: { r: 0.094, g: 0.094, b: 0.106 } }];
+  docsText.textDecoration = "UNDERLINE";
+  docsText.textAutoResize = "WIDTH_AND_HEIGHT";
+  docsRight.appendChild(docsText);
+
+  // External link arrow — Unicode ↗ (U+2197), no image needed
+  const extArrow = figma.createText();
+  extArrow.fontName = { family: "Inter", style: FONT_WEIGHT.medium };
+  extArrow.fontSize = FONT_SIZE.lg.size;
+  extArrow.characters = "↗";
+  extArrow.fills = [{ type: "SOLID", color: { r: 0.094, g: 0.094, b: 0.106 } }];
+  extArrow.textAutoResize = "WIDTH_AND_HEIGHT";
+  docsRight.appendChild(extArrow);
+
+  docHeader.appendChild(docsRight);
+  readme.appendChild(docHeader);
 
   // Title block
   const titleFrame = figma.createFrame();
   titleFrame.layoutMode = "VERTICAL";
-  titleFrame.itemSpacing = 6;
+  titleFrame.itemSpacing = 32;
   titleFrame.fills = [];
   titleFrame.clipsContent = false;
   titleFrame.layoutAlign = "STRETCH";
   titleFrame.counterAxisSizingMode = "FIXED";
-  const titleNode = makeText(cs.name, 28, "Bold");
-  titleNode.resize(560, titleNode.height);
+  const titleNode = makeText(cs.name, FONT_SIZE.heading, FONT_WEIGHT.bold);
+  titleNode.resize(720, titleNode.height);
   titleNode.layoutAlign = "INHERIT";
   titleFrame.appendChild(titleNode);
   const subtitleText = descriptions.componentDescription ? descriptions.componentDescription : (cs.name + " is a UI component.");
-  const subtitle = makeText(subtitleText, 14, "Regular", { r: 0.4, g: 0.4, b: 0.4 });
-  subtitle.resize(560, subtitle.height);
+  const subtitle = makeText(subtitleText, FONT_SIZE.lg, FONT_WEIGHT.regular, { r: 0, g: 0, b: 0 });
+  subtitle.resize(720, subtitle.height);
   subtitle.layoutAlign = "INHERIT";
   titleFrame.appendChild(subtitle);
   titleFrame.primaryAxisSizingMode = "AUTO";
@@ -506,6 +634,27 @@ async function buildReadme(cs, descriptions, manualSections, themeConfig, corner
       readme.appendChild(makeManualSection(sectionTitle));
     }
   }
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  const footer = figma.createFrame();
+  footer.name = "_FooterDocs";
+  footer.layoutMode = "VERTICAL";
+  footer.itemSpacing = 40;
+  footer.fills = [];
+  footer.clipsContent = false;
+  footer.layoutAlign = "STRETCH";
+  footer.counterAxisSizingMode = "FIXED";
+  footer.primaryAxisSizingMode = "AUTO";
+  footer.appendChild(makeDivider());
+  const footerText = figma.createText();
+  footerText.fontName = { family: "Inter", style: FONT_WEIGHT.medium };
+  footerText.fontSize = FONT_SIZE.lg.size;
+  footerText.lineHeight = { value: FONT_SIZE.lg.leading, unit: "PIXELS" };
+  footerText.characters = "Created with <3 by Readydoc";
+  footerText.fills = [{ type: "SOLID", color: { r: 0.4, g: 0.4, b: 0.4 } }];
+  footerText.textAutoResize = "WIDTH_AND_HEIGHT";
+  footer.appendChild(footerText);
+  readme.appendChild(footer);
 
   readme.primaryAxisSizingMode = "AUTO";
 
@@ -590,7 +739,7 @@ function collectTextStyles() {
 
 // ─── message bus ────────────────────────────────────────────────────────────
 
-var CONFIG_KEY = "plugin_config";
+const CONFIG_KEY = "plugin_config";
 
 // load saved key on startup — always send so UI knows loading is complete
 figma.clientStorage.getAsync("claude_api_key").then(function(key) {
@@ -623,7 +772,11 @@ figma.ui.onmessage = async function(msg) {
   }
 
   if (msg.type === "BUILD_README") {
-    const cs = getComponentSet();
+    var cs = getComponentSet();
+    if (!cs && _lastComponentSetId) {
+      var node = figma.getNodeById(_lastComponentSetId);
+      if (node && node.type === "COMPONENT_SET") cs = node;
+    }
     if (!cs) return;
     try {
       await buildReadme(cs, msg.descriptions, msg.manualSections, msg.themeConfig, msg.cornerRadius);

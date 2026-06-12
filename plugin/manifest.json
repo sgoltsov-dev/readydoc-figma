@@ -1,5 +1,5 @@
 {
-  "name": "AI Component Docs",
+  "name": "Readydoc",
   "id": "component-readme-generator",
   "api": "1.0.0",
   "main": "dist/code.js",
